@@ -1,0 +1,40 @@
+# Build and binary files
+/build/
+/bin/
+/*.out
+/*.exe
+/*.o
+*.obj
+
+# CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.bak
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Docker artifacts
+*.tar
+*.img
+
+# Ignore compiled server
+/server
+
+# If you use CLion or VSCode
+.idea/
+.vscode/
+
+# If you include images or uploads
+*.jpg
+*.png
+*.jpeg
+uploads/

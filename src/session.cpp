@@ -37,6 +37,9 @@ void HttpSession::onRead(boost::beast::error_code ec, size_t bytes){
         if(!MyFile){
             std::cerr << "Failed to open upload.jpg for writing\n";
             prepareImgFailRes("Failed to upload the image.");
+            doWrite(bytes);
+            req = {};
+            return;
         }
         MyFile.write(req.body().data(),req.body().size());
         MyFile.close();
@@ -63,8 +66,23 @@ void HttpSession::onRead(boost::beast::error_code ec, size_t bytes){
         std::cout<<"[HttpSession::onRead] - Post Request hit"<<std::endl;
         std::stringstream ss(req.body());
         property_tree::ptree readJson;
+        try{
         property_tree::read_json(ss, readJson);
-        std::string imgPath = readJson.get<std::string>("fileName");
+        }
+        catch (...){
+            prepareImgFailRes("Invalid Json Body");
+            doWrite(bytes);
+            req = {};
+            return;
+        }
+        auto optFileName = readJson.get_optional<std::string>("fileName");
+        if(!optFileName){
+            prepareImgFailRes("Missing Parameter");
+            doWrite(bytes);
+            req = {};
+            return;
+        }
+        std::string imgPath = optFileName.get();
         size_t pos = imgPath.find("upload");
     
         std::string beforeUpload = imgPath.substr(0, pos);
@@ -73,40 +91,67 @@ void HttpSession::onRead(boost::beast::error_code ec, size_t bytes){
              bool sucess = ImageProcessor::processGray(absolutePath + imgPath, beforeUpload+"output.jpg");
         if(sucess){
             prepareImgSucessRes(beforeUpload+"output.jpg");
+            doWrite(bytes);
+            req = {};
+            return;
         }
         else{
             prepareImgFailRes("Failed to Process Image");
+            doWrite(bytes);
+            req = {};
+            return;
         }
         }
         else if(req.target()== "/resize"){
-            int width = readJson.get<int>("width");
-            int height = readJson.get<int>("height");
-            bool sucess = ImageProcessor::processResize(absolutePath + imgPath, beforeUpload+"output.jpg", width, height);
+            auto optWidth = readJson.get_optional<int>("width");
+            auto optHeight = readJson.get_optional<int>("height");
+            if(!optWidth && ! optHeight){
+                prepareImgFailRes("Missing Parameter");
+                doWrite(bytes);
+                req = {};
+                return;
+            }
+            bool sucess = ImageProcessor::processResize(absolutePath + imgPath, beforeUpload+"output.jpg", optWidth.get(), optHeight.get());
         if(sucess){
             prepareImgSucessRes(beforeUpload+"output.jpg");
+            doWrite(bytes);
+            req = {};
+            return;
             }
         else{
             prepareImgFailRes("Failed to Process Image");
+            doWrite(bytes);
+            req = {};
+            return;
             }
         }
         else if(req.target() == "/filter"){
             std::cout<<"[HttpSession::onRead] - Filter Image"<<std::endl;
             if(readJson.get<std::string>("filterType") == "blur"){
-                int width = readJson.get<int>("width");
-                int height = readJson.get<int>("height");
-                bool sucess = ImageProcessor::processBlur(absolutePath + imgPath, beforeUpload+"output.jpg", width, height);
+            auto optWidth = readJson.get_optional<int>("width");
+            auto optHeight = readJson.get_optional<int>("height");
+            if(!optWidth && ! optHeight){
+                prepareImgFailRes("Missing Parameter");
+                doWrite(bytes);
+                req = {};
+                return;
+            }
+                bool sucess = ImageProcessor::processBlur(absolutePath + imgPath, beforeUpload+"output.jpg", optWidth.get(), optHeight.get());
                 if(sucess){
                     prepareImgSucessRes(beforeUpload+"output.jpg");
+                    doWrite(bytes);
+                    req = {};
+                    return;
                 }
                 else{
                     prepareImgSucessRes("Failed to Process Image");
+                    doWrite(bytes);
+                req = {};
+                return;
                 }
             }
 
         }
-    }
-    else if((req.method()== http::verb::post) && (req.target()== "/grayscale")){
-
     }
     else{
             textRes->result(http::status::bad_request);
@@ -115,10 +160,12 @@ void HttpSession::onRead(boost::beast::error_code ec, size_t bytes){
             textRes->set(http::field::content_type, "text/plain");
             textRes->body() = "Unsupported method.";
             textRes->prepare_payload();
-        }
             doWrite(bytes);
             req = {};
             std::cout << "[DEBUG - HttpSession::onRead] function exit."<< std::endl;
+            return;
+        }
+            
 }
 void HttpSession::doWrite(std::size_t length){
     std::cout << "[DEBUG - HttpSession::doWrite] function enter."<< std::endl;

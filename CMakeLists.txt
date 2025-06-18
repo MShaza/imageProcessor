@@ -17,8 +17,8 @@ add_executable(image_service
     main.cpp
     src/server.cpp
     src/session.cpp
-    src/ImageProcessor
-    src/generateId
+    src/imageProcessor.cpp
+    src/generateId.cpp
 )
 
-target_link_libraries(image_service ${OpenCV_LIBS} ${Boost_INCLUDE_DIRS})
+target_link_libraries(image_service ${OpenCV_LIBS} ${Boost_LIBRARIES})
